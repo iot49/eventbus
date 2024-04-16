@@ -8,11 +8,9 @@ class Printer(EventBus):
 
     def __init__(self, subscribe: EventBus):
         super().__init__()
-        self.start_time = time.time_ns()
+        self.start_time = None
         subscribe.subscribe(self)
 
-    async def post(self, event: Event | list[Event]) -> None:
-        if isinstance(event, Event):
-            event = [event]
-        for e in event:
-            print(f"PRINT {(time.time_ns()-self.start_time)/1e9:3.4f}", e.to_dict())
+    async def post(self, event: Event) -> None:
+        self.start_time = self.start_time or time.time_ns()
+        print(f"PRINT {(time.time_ns()-self.start_time)/1e9:3.4f}", event)

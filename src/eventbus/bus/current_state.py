@@ -1,5 +1,5 @@
-from eventbus import Event, EventBus
-from eventbus.events import GetState, State
+from .. import Event, EventBus, event_type
+from ..event import state
 
 
 class CurrentState(EventBus):
@@ -12,13 +12,16 @@ class CurrentState(EventBus):
         bus.subscribe(self)
 
     async def process(self, event: Event) -> None:
-        if isinstance(event, State):
-            self.state[event.entity_id] = event
-        elif isinstance(event, GetState):
-            for s in self.state.values():
-                s.dst = event.src
-                print("CurrentState", s.to_dict())
-                await self.bus.post(s)
+        et = event["et"]
+        if et == event_type.STATE:
+            # update current state
+            self.state[event["entity_id"]] = (event["value"], event["timestamp"])
+        elif et == event_type.GET_STATE:
+            # sent all state values
+            dst = event["src"]
+            assert dst is not None
+            for entity_id, (value, ts) in self.state.items():
+                await self.bus.post(state(entity_id, value, dst=dst, timestamp=ts))
 
     async def post(self, event: Event | list[Event]) -> None:
         if isinstance(event, Event):

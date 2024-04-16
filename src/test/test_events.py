@@ -2,7 +2,7 @@ import time
 from datetime import datetime, timezone
 
 import eventbus
-from eventbus.events import Hello, State, ping, pong
+from eventbus.event import Hello, State, ping, pong
 
 eventbus.SRC_ADDR = "tree.branch"  # noqa: F811
 

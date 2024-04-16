@@ -1,8 +1,6 @@
 from typing import List, Optional
 
-from .events import Event
-
-SRC_ADDR = None
+from .event import Event
 
 
 class EventBus:
@@ -11,7 +9,7 @@ class EventBus:
     def __init__(self):
         self.subscribers: Optional[List["EventBus"]] = None
 
-    async def post(self, event: Event | list[Event]) -> None:
+    async def post(self, event: Event) -> None:
         """Post one (or several) event(s) to this eventbus."""
         if self.subscribers is None:
             return
