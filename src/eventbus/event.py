@@ -3,19 +3,35 @@ import time
 from . import event_type
 from .eid import eid2addr, eid2did, eid2eid, getSrcAddr
 
-Event = dict
+"""
+Events are dicts communicated by EventBus.
+
+The following fields are mandatory:
+
+- et: event type (and int defined in event_type.py)
+- src: source address (str)
+- dst: destination address (str)
+
+All other fields are specific to the event type. To keep
+things organized, events should not be created ad-hoc.
+This file defines a set of functions to create events for
+an application. For other purposes, it should be modified
+or extended.
+"""
 
 # MicroPython time starts from 2000-01-01 on some ports
 EPOCH_OFFSET = 946684800 if time.gmtime(0)[0] == 2000 else 0
 
-
+# connection keep-alive
 ping = {"et": event_type.PING, "src": getSrcAddr()}
 pong = {"et": event_type.PONG, "src": getSrcAddr()}
 
+# states
 get_state = {"et": event_type.GET_STATE, "dst": "#server", "src": getSrcAddr()}
 get_config = {"et": event_type.GET_CONFIG, "dst": "#server", "src": getSrcAddr()}
 get_log = {"et": event_type.GET_LOG, "dst": "#server", "src": getSrcAddr()}
 
+# connection management
 hello_connected = {"et": event_type.HELLO_CONNECTED, "src": getSrcAddr()}
 hello_no_token = {"et": event_type.HELLO_NO_TOKEN, "src": getSrcAddr()}
 hello_invalid_token = {"et": event_type.HELLO_INVALID_TOKEN, "src": getSrcAddr()}

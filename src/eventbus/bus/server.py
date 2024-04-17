@@ -4,6 +4,7 @@ from typing import Any
 
 from .. import Event, EventBus
 from ..event import bye, bye_timeout, hello_connected, ping, pong
+from . import Bridge
 
 
 class Protocol:
@@ -27,9 +28,9 @@ class Transport(Protocol):
 class Server(EventBus):
     CLIENT_ADDR = 0
 
-    def __init__(self, transport: Transport, bus: EventBus, timeout: float = 1):
+    def __init__(self, transport: Transport, bridge: Bridge, timeout: float = 1):
         self.transport = transport
-        self.bus = bus
+        self.bridge = bridge
         self.timeout = timeout
         self.closed = False
         self.client_addr = f"@{Server.CLIENT_ADDR}"
@@ -37,10 +38,10 @@ class Server(EventBus):
 
     async def run(self):
         """Returns when the connection is closed."""
-        self.bus.subscribe(self)
+        self.bridge.subscribe(self)
         hello_connected["dst"] = self.client_addr
         hello_connected["param"] = {"timeout_interval": self.timeout}
-        await self.bus.post(hello_connected)
+        await self.bridge.post(hello_connected)
         await self.receiver_task()
 
     async def post(self, event: Event) -> None:
@@ -58,7 +59,7 @@ class Server(EventBus):
         elif event == bye:
             self.closed = True
         else:
-            await self.bus.post(event)
+            await self.bridge.post(event)
 
     async def receiver_task(self):
         while not self.closed:
@@ -68,10 +69,10 @@ class Server(EventBus):
                     for e in event:
                         await self.process_event(e)
                 else:
-                    await self.bus.post(event)  # type: ignore
+                    await self.bridge.post(event)  # type: ignore
             except asyncio.TimeoutError:
                 print("Server Timeout - disconnecting")
-                await self.bus.post(bye_timeout)
+                await self.bridge.post(bye_timeout)
                 self.closed = True
             except Exception as e:
                 print("Server Error", e)

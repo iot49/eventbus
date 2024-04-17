@@ -3,8 +3,7 @@ import json
 from contextlib import asynccontextmanager
 
 import uvicorn
-from eventbus import EventBus
-from eventbus.bus import CurrentState, Server
+from eventbus.bus import Bridge, CurrentState, Printer, Server
 from eventbus.event import get_state, state_action
 from examples.counter import Counter
 from fastapi import FastAPI, WebSocket
@@ -28,9 +27,8 @@ async def get():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    print("Websocket connected")
     await websocket.accept()
-    server = Server(websocket, bus=broadcast_bus, timeout=3)  # type: ignore
+    server = Server(websocket, bridge=bridge, timeout=3)  # type: ignore
     try:
         await server.run()
     finally:
@@ -42,15 +40,15 @@ async def websocket_endpoint(websocket: WebSocket):
 
 async def reset_task():
     for i in range(N):
-        await broadcast_bus.post(state_action(counter1.state, "reset", param=i))
+        await bridge.post(state_action(counter1.state, "reset", param=i))
         await asyncio.sleep(200)
 
 
-broadcast_bus = EventBus()
-CurrentState(broadcast_bus)
-# Printer(broadcast_bus)
-counter1 = Counter("counter1.up", broadcast_bus, interval=1, N=N)
-counter2 = Counter("counter2.up", broadcast_bus, interval=5, N=N)
+bridge = Bridge()
+CurrentState(bridge)
+Printer(bridge)
+counter1 = Counter("counter1.up", bridge, interval=1, N=N)
+counter2 = Counter("counter2.up", bridge, interval=5, N=N)
 
 print("Action", json.dumps(state_action(counter1.state, "reset", param=777)))
 print("GetState", json.dumps(get_state))

@@ -1,30 +1,26 @@
-from typing import List, Optional
+from abc import abstractmethod
 
-from .event import Event
+"""
+EventBus - a simple interface for routing events (dicts).
+
+Typically you would create a Bridge and one or more clients
+post and receive events. The Bridge and clients (if interested
+in receiving events) all implement the EventBus interface.
+
+To send an event, post it on the Bridge. Clients are notified
+of new events by the Bridge calling their post method.
+
+Beware of recursion: events posted on the Bridge will be received
+by all clients, including the one that posted the event.
+"""
+
+Event = dict
 
 
 class EventBus:
     """Post and get events."""
 
-    def __init__(self):
-        self.subscribers: Optional[List["EventBus"]] = None
-
+    @abstractmethod
     async def post(self, event: Event) -> None:
         """Post one (or several) event(s) to this eventbus."""
-        if self.subscribers is None:
-            return
-        for subscriber in self.subscribers:
-            # TODO: detect loops
-            await subscriber.post(event)
-
-    def subscribe(self, bus: "EventBus") -> None:
-        """Subscribe to this eventbus."""
-        if self.subscribers is None:
-            self.subscribers = [bus]
-        else:
-            self.subscribers.append(bus)
-
-    def unsubscribe(self, bus: "EventBus") -> None:
-        """Unsubscribe from this eventbus."""
-        if self.subscribers is not None:
-            self.subscribers.remove(bus)
+        pass
