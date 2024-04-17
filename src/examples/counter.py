@@ -1,6 +1,6 @@
 import asyncio
 
-from eventbus import EventBus, event, event_type
+from eventbus import EventBus, event_type
 from eventbus.bus import CurrentState, Printer
 from eventbus.event import get_state, state, state_action, state_update
 
@@ -8,12 +8,12 @@ from eventbus.event import get_state, state, state_action, state_update
 class Counter(EventBus):
     """Resettable counter"""
 
-    def __init__(self, entity_id: str, bus: EventBus, interval: float = 0.1, N: int = 10):
+    def __init__(self, eid: str, bus: EventBus, interval: float = 0.1, N: int = 10):
         super().__init__()
         self.bus = bus
         self.interval = interval
         self.N = N
-        self.state = state(entity_id=entity_id, value=0)
+        self.state = state(eid=eid, value=0)
         # Subscribe to the bus to receive StateAction events
         bus.subscribe(self)
 
@@ -28,14 +28,11 @@ class Counter(EventBus):
     async def post(self, event):
         # Called by bus when an event is posted
         if event["et"] == event_type.STATE_ACTION:
-            device_id = ".".join(self.state["entity_id"].split(".")[:3])
+            device_id = ".".join(self.state["eid"].split(".")[:3])
             if event["device_id"] == device_id and event["action"] == "reset":
                 # reset counter and post its new value
                 state_update(self.state, value=0)
                 await self.post(self.state)
-
-
-event.SRC_ADDR = "tree.branch"  # noqa: F811
 
 
 async def main():
@@ -46,7 +43,6 @@ async def main():
 
     async def current_state_task():
         for i in range(3):
-            get_state["src"] = f"tree.branch{i}"
             await asyncio.sleep(0.7)
             await broadcast_bus.post(get_state)
 

@@ -15,13 +15,13 @@ class CurrentState(EventBus):
         et = event["et"]
         if et == event_type.STATE:
             # update current state
-            self.state[event["entity_id"]] = (event["value"], event["timestamp"])
+            self.state[event["eid"]] = (event["value"], event["timestamp"])
         elif et == event_type.GET_STATE:
             # sent all state values
             dst = event["src"]
             assert dst is not None
-            for entity_id, (value, ts) in self.state.items():
-                await self.bus.post(state(entity_id, value, dst=dst, timestamp=ts))
+            for eid, (value, ts) in self.state.items():
+                await self.bus.post(state(eid, value, dst=dst, timestamp=ts))
 
     async def post(self, event: Event | list[Event]) -> None:
         if isinstance(event, Event):

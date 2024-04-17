@@ -3,18 +3,11 @@ from abc import abstractmethod
 from typing import Any
 
 from .. import Event, EventBus
-from ..event import ping, pong
+from ..event import bye, bye_timeout, hello_connected, ping, pong
 
-try:
-    from typing import Protocol
 
-    from fastapi import WebSocketDisconnect
-except ImportError:
-    WebSocketDisconnect = Exception
-    Protocol = object
-
-# each client gets a unique address
-CLIENT_ADDR = 1
+class Protocol:
+    pass
 
 
 class Transport(Protocol):
@@ -26,46 +19,66 @@ class Transport(Protocol):
     async def receive_json(self) -> Any:
         pass
 
+    @abstractmethod
+    async def close(self) -> Any:
+        pass
+
 
 class Server(EventBus):
+    CLIENT_ADDR = 0
+
     def __init__(self, transport: Transport, bus: EventBus, timeout: float = 1):
         self.transport = transport
         self.bus = bus
         self.timeout = timeout
+        self.closed = False
+        self.client_addr = f"@{Server.CLIENT_ADDR}"
+        Server.CLIENT_ADDR += 1
 
     async def run(self):
         """Returns when the connection is closed."""
         self.bus.subscribe(self)
+        hello_connected["dst"] = self.client_addr
+        hello_connected["param"] = {"timeout_interval": self.timeout}
+        await self.bus.post(hello_connected)
         await self.receiver_task()
 
     async def post(self, event: Event) -> None:
         # TODO: filter
         # TODO: group events in lists
-        print("Server post", event)
-        await self.transport.send_json(event)  # type: ignore
+        try:
+            if not self.closed:
+                await self.transport.send_json(event)
+        except RuntimeError:
+            self.closed = True
 
     async def process_event(self, event: Event) -> None:
         if event == ping:
             await self.post(pong)
+        elif event == bye:
+            self.closed = True
         else:
             await self.bus.post(event)
 
     async def receiver_task(self):
-        global CLIENT_ADDR
-        while True:
+        while not self.closed:
             try:
-                event = await asyncio.wait_for(self.transport.receive_json(), timeout=self.timeout)
-                event["src"] = f"@{CLIENT_ADDR}"
-                CLIENT_ADDR += 1
-                print("GOT", event)
+                event = await asyncio.wait_for(self.transport.receive_json(), timeout=self.timeout + 1)
+                if isinstance(event, list):
+                    for e in event:
+                        await self.process_event(e)
+                else:
+                    await self.bus.post(event)  # type: ignore
             except asyncio.TimeoutError:
                 print("Server Timeout - disconnecting")
-                break
-            except WebSocketDisconnect as e:
+                await self.bus.post(bye_timeout)
+                self.closed = True
+            except Exception as e:
                 print("Server Error", e)
-                break
-            if isinstance(event, list):
-                for e in event:
-                    await self.process_event(e)
-            else:
-                await self.bus.post(event)  # type: ignore
+                self.closed = True
+        try:
+            await self.transport.close()
+        except RuntimeError as e:
+            print("RuntimeError closing transport", e)
+        except Exception as e:
+            print("Server Error closing transport", e)

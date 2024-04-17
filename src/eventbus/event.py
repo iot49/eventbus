@@ -1,31 +1,36 @@
 import time
 
 from . import event_type
+from .eid import eid2addr, eid2did, eid2eid, getSrcAddr
 
 Event = dict
-
-SRC_ADDR = "tree.branch"
 
 # MicroPython time starts from 2000-01-01 on some ports
 EPOCH_OFFSET = 946684800 if time.gmtime(0)[0] == 2000 else 0
 
 
-ping = {"et": event_type.PING}
-pong = {"et": event_type.PONG}
+ping = {"et": event_type.PING, "src": getSrcAddr()}
+pong = {"et": event_type.PONG, "src": getSrcAddr()}
 
-get_state = {"et": event_type.GET_STATE, "dst": "#server"}
-get_config = {"et": event_type.GET_CONFIG, "dst": "#server"}
-get_log = {"et": event_type.GET_LOG, "dst": "#server"}
+get_state = {"et": event_type.GET_STATE, "dst": "#server", "src": getSrcAddr()}
+get_config = {"et": event_type.GET_CONFIG, "dst": "#server", "src": getSrcAddr()}
+get_log = {"et": event_type.GET_LOG, "dst": "#server", "src": getSrcAddr()}
+
+hello_connected = {"et": event_type.HELLO_CONNECTED, "src": getSrcAddr()}
+hello_no_token = {"et": event_type.HELLO_NO_TOKEN, "src": getSrcAddr()}
+hello_invalid_token = {"et": event_type.HELLO_INVALID_TOKEN, "src": getSrcAddr()}
+
+bye = {"et": event_type.BYE, "src": getSrcAddr()}
+bye_timeout = {"et": event_type.BYE_TIMEOUT, "src": getSrcAddr()}
 
 
-def state(entity_id: str, value, dst="#clients", timestamp: float = time.time() + EPOCH_OFFSET):
-    if entity_id.count(".") == 1:
-        entity_id = f"{SRC_ADDR}.{entity_id}"
+def state(eid: str, value, dst="#clients", timestamp: float = time.time() + EPOCH_OFFSET):
     return {
         "et": event_type.STATE,
-        "entity_id": entity_id,
+        "eid": eid2eid(eid),
         "value": value,
         "timestamp": timestamp,
+        "src": getSrcAddr(),
         "dst": dst,
     }
 
@@ -37,22 +42,12 @@ def state_update(state: dict, value):
 
 
 def state_action(state: dict, action: str, param=None):
-    eid = state["entity_id"].split(".")
-    device_id = ".".join(eid[:3])
-    dst = ".".join(eid[:2])
+    eid = state["eid"]
     return {
         "et": event_type.STATE_ACTION,
-        "device_id": device_id,
+        "device_id": eid2did(eid),
         "action": action,
         "param": param,
-        "dst": dst,
+        "src": getSrcAddr(),
+        "dst": eid2addr(eid),
     }
-
-
-def hello(success: str = None, error: str = None):  # type: ignore
-    res: dict = {"et": event_type.HELLO}
-    if success is not None:
-        res["success"] = success
-    if error is not None:
-        res["error"] = error
-    return res

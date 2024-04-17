@@ -6,9 +6,8 @@ import uvicorn
 from eventbus import EventBus
 from eventbus.bus import CurrentState, Server
 from eventbus.event import get_state, state_action
-from fastapi import FastAPI, WebSocket
-
 from examples.counter import Counter
+from fastapi import FastAPI, WebSocket
 
 N = 100_000  # basically run forever
 
@@ -29,8 +28,9 @@ async def get():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    print("Websocket connected")
     await websocket.accept()
-    server = Server(websocket, bus=broadcast_bus, timeout=1000)
+    server = Server(websocket, bus=broadcast_bus, timeout=3)  # type: ignore
     try:
         await server.run()
     finally:
@@ -43,13 +43,13 @@ async def websocket_endpoint(websocket: WebSocket):
 async def reset_task():
     for i in range(N):
         await broadcast_bus.post(state_action(counter1.state, "reset", param=i))
-        await asyncio.sleep(20)
+        await asyncio.sleep(200)
 
 
 broadcast_bus = EventBus()
 CurrentState(broadcast_bus)
 # Printer(broadcast_bus)
-counter1 = Counter("counter1.up", broadcast_bus, interval=3, N=N)
+counter1 = Counter("counter1.up", broadcast_bus, interval=1, N=N)
 counter2 = Counter("counter2.up", broadcast_bus, interval=5, N=N)
 
 print("Action", json.dumps(state_action(counter1.state, "reset", param=777)))
@@ -57,9 +57,8 @@ print("GetState", json.dumps(get_state))
 
 
 async def main():
-    print("main!")
     await asyncio.gather(counter1._count_task(), counter2._count_task(), reset_task())
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=8055, host="0.0.0.0")
+    uvicorn.run(app, port=8055, host="0.0.0.0")  # , log_level="trace")
